@@ -451,9 +451,4 @@ if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_ENV') != 'production'
     
     if debug_mode:
-        print('Open http://localhost:5000 in your browser')
-        socketio.run(app, host='0.0.0.0', port=port, debug=False)
-    else:
-        print('Running in production mode')
-        # For Azure, gunicorn will handle the server startup
-        app.run(host='0.0.0.0', port=port)
+        socketio.run(app, host='0.0.0.0', port=port)
