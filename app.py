@@ -1,10 +1,8 @@
-import cv2
 from flask import Flask, Response, render_template_string, request
 from flask_socketio import SocketIO, emit
 import threading
 import time
 import os
-import numpy as np
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -20,42 +18,21 @@ socketio = SocketIO(app,
 # Track connected users
 connected_users = set()
 
-# Camera setup with cloud deployment fallback
-EXTERNAL_CAM_INDEX = 1  # Change this to your camera index
+# Simplified camera setup - no OpenCV needed
 camera = None
-
-# Try to initialize camera (will fail on cloud platforms)
-try:
-    camera = cv2.VideoCapture(EXTERNAL_CAM_INDEX, cv2.CAP_DSHOW)
-    if not camera.isOpened():
-        print(f"Error: Could not open camera at index {EXTERNAL_CAM_INDEX}")
-        for i in range(3):
-            camera = cv2.VideoCapture(i)
-            if camera.isOpened():
-                EXTERNAL_CAM_INDEX = i
-                print(f"Found camera at index {i}")
-                break
-        else:
-            print("No local camera found.")
-            camera = None
-except Exception as e:
-    print(f"Camera initialization failed: {e}")
-    camera = None
 
 @app.route('/video_feed')
 def video_feed():
     def generate():
-        # For cloud deployment - return placeholder
-        placeholder = np.zeros((480, 640, 3), dtype=np.uint8)
-        cv2.putText(placeholder, 'Use browser camera below', (120, 240), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        ret, buffer = cv2.imencode('.jpg', placeholder)
-        frame_bytes = buffer.tobytes()
-        
+        # Simple placeholder without OpenCV
+        placeholder_response = b'''--frame\r
+Content-Type: text/plain\r
+
+Server camera not available in cloud deployment. Use browser camera below.\r
+'''
         while True:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-            time.sleep(1)  # Slower refresh for placeholder
+            yield placeholder_response
+            time.sleep(1)
     
     return Response(generate(),
                   mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -251,7 +228,10 @@ def index():
                 </div>
                 <div class="video-section">
                     <h3>Server Feed</h3>
-                    <img id="video-feed" src="/video_feed" alt="Server camera feed">
+                    <div style="width: 100%; height: 200px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #666;">
+                        📹 Server camera not available in cloud deployment<br>
+                        Use your browser camera above for live video!
+                    </div>
                 </div>
             </div>
             <div id="chat-container">
