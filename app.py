@@ -39,7 +39,7 @@ try:
             print("No local camera found.")
             camera = None
 except Exception as e:
-    print(f"Camera initialization failed: {e}")
+    # print(f"Camera initialization failed: {e}")
     camera = None
 
 @app.route('/video_feed')
