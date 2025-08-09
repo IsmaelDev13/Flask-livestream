@@ -39,7 +39,7 @@ try:
             print("No local camera found.")
             camera = None
 except Exception as e:
-    # print(f"Camera initialization failed: {e}")
+    print(f"Camera initialization failed: {e}")
     camera = None
 
 @app.route('/video_feed')
@@ -448,7 +448,11 @@ if __name__ == '__main__':
     
     # Get port from environment variable (for Azure deployment) or default to 5000
     port = int(os.environ.get('PORT', 5000))
-    debug_mode = os.environ.get('FLASK_ENV') != 'production'
     
-    if debug_mode:
-        socketio.run(app, host='0.0.0.0', port=port)
+    # For local development
+    if os.environ.get('WEBSITE_SITE_NAME') is None:
+        print('Running locally')
+        socketio.run(app, host='0.0.0.0', port=port, debug=False)
+    else:
+        print('Running on Azure')
+        # Azure handles the server startup with gunicorn
