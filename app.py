@@ -462,7 +462,23 @@ current_stream = {
     'streamer_id': None,
     'streamer_name': None
 }
+import subprocess
+from threading import Thread
 
+# Add this before your Flask routes
+def start_rtmp_server():
+    try:
+        subprocess.run(["node", "rtmp_server.js"])
+    except Exception as e:
+        print(f"Failed to start RTMP server: {e}")
+
+# Start the RTMP server in a separate thread when the Flask app starts
+if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' and os.environ.get('WEBSITE_SITE_NAME') is None:
+    rtmp_thread = Thread(target=start_rtmp_server)
+    rtmp_thread.daemon = True
+    rtmp_thread.start()
+
+    
 # Simplified camera setup - no OpenCV needed
 camera = None
 
@@ -490,21 +506,19 @@ def stream_info():
 @app.route('/stream/rtmp-key')
 def get_rtmp_key():
     """Generate RTMP streaming key"""
-    # In production, you'd generate a secure key
     app_url = request.host_url.rstrip('/')
-    rtmp_url = f"rtmp://your-rtmp-server.com/live"  # You'd replace this with actual RTMP server
-    stream_key = f"user-{len(connected_users)}-{int(time.time())}"
+    rtmp_url = f"rtmp://{request.host.split(':')[0]}:1935/live"  # Point to local RTMP server
+    stream_key = f"stream-{len(connected_users)}-{int(time.time())}"
     
     return jsonify({
         'rtmp_url': rtmp_url,
         'stream_key': stream_key,
-        'hls_playback': f"{app_url}/stream/watch/{stream_key}",
+        'hls_playback': f"{app_url}:8000/live/{stream_key}/index.m3u8",
         'instructions': {
             'obs': 'In OBS: Settings → Stream → Service: Custom → Server: ' + rtmp_url + ' → Stream Key: ' + stream_key,
             'software': 'Any RTMP-compatible software can use these settings'
         }
     })
-
 @socketio.on('chat_message')
 def handle_message(data):
     print(f'Received message from {data.get("user", "anonymous")}: {data.get("msg", "")}')
@@ -1152,15 +1166,24 @@ def index():
             });
             
             socket.on('stream_info', (data) => {
-                currentStreamInfo = data;
-                if (data.active) {
-                    streamStatus.textContent = `🔴 LIVE: ${data.streamer_name}`;
-                    streamStatus.className = 'stream-status stream-active';
-                } else {
-                    streamStatus.textContent = 'No one is streaming';
-                    streamStatus.className = 'stream-status stream-inactive';
-                }
-            });
+    currentStreamInfo = data;
+    if (data.active) {
+        streamStatus.textContent = `🔴 LIVE: ${data.streamer_name}`;
+        streamStatus.className = 'stream-status stream-active';
+        
+        // If this is a viewer (not the streamer), setup playback
+        if (!isBroadcasting && data.streamer_id !== socket.id) {
+            if (data.stream_key) {
+                // This is an RTMP stream
+                setupHLSPlayback(data.stream_key);
+            }
+        }
+    } else {
+        streamStatus.textContent = 'No one is streaming';
+        streamStatus.className = 'stream-status stream-inactive';
+        streamVideo.style.display = 'none';
+    }
+});
             
             // WebRTC handling for viewers
             socket.on('webrtc_offer', async (data) => {
