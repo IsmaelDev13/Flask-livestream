@@ -70,20 +70,24 @@ def stream_info():
 def get_rtmp_key():
     """Generate RTMP streaming key"""
     app_url = request.host_url.rstrip('/')
-    rtmp_url = f"rtmp://{request.host.split(':')[0]}/live"
+    # Extract host without port for RTMP URL
+    host = request.host.split(':')[0]
+    rtmp_url = f"rtmp://{host}/live"
     stream_key = f"stream-{len(connected_users)}-{int(time.time())}"
-    print(f'{app_url}:8000/live/{stream_key}/index.m3u8')
+    
+    # Fix the HLS URL by using the correct port (8000)
+    hls_url = f"http://{host}:8000/live/{stream_key}/index.m3u8"
+    print(hls_url)
 
     return jsonify({
         'rtmp_url': rtmp_url,
         'stream_key': stream_key,
-        'hls_playback': f"{app_url}:8000/live/{stream_key}/index.m3u8",
+        'hls_playback': hls_url,
         'instructions': {
             'obs': 'In OBS: Settings → Stream → Service: Custom → Server: ' + rtmp_url + ' → Stream Key: ' + stream_key,
             'software': 'Any RTMP-compatible software can use these settings'
         }
     })
-
 @socketio.on('chat_message')
 def handle_message(data):
     print(f'Received message from {data.get("user", "anonymous")}: {data.get("msg", "")}')
@@ -771,8 +775,11 @@ def index():
             });
             
             function setupHLSPlayback(streamKey) {
+                                    const host = window.location.hostname;
+    const hlsUrl = `http://${host}:8000/live/${streamKey}/index.m3u8`;
+    
+    console.log('Setting up HLS playback from:', hlsUrl);
                 const appUrl = window.location.href.split('/').slice(0, 3).join('/');
-                const hlsUrl = `${appUrl}:8000/live/${streamKey}/index.m3u8`;
                 
                 console.log('Setting up HLS playback from:', hlsUrl);
                 
